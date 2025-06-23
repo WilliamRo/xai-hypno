@@ -754,14 +754,16 @@ class HSPAgent(LongitudinalManager):
   def convert_to_folder_names(self, patient_dict: OrderedDict, local=False):
     """e.g., <APN>/bdsp-psg-access-point/PSG/bids/sub-S0001111190905/ses-1/"""
     if local: src_path = self.data_dir
-    else: src_path = f'{self.access_point_name}/bdsp-psg-access-point/PSG/bids/S0001'
+    else: src_path = f'{self.access_point_name}/bdsp-psg-access-point/PSG/bids'
 
     assert src_path[-1] != '/'
 
     folder_list = []
     for pid, sess_dict in patient_dict.items():
       for sess_id, sess_info in sess_dict.items():
-        folder_name = f'{src_path}/{pid}/{sess_id}'
+        # folder_name = f'{src_path}/{pid}/{sess_id}'
+        # TODO
+        folder_name = f'{src_path}/S0001/{pid}/{sess_id}'
         folder_list.append(folder_name)
     return folder_list
 
