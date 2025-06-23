@@ -1,0 +1,6 @@
+[submodule "xai-kit"]
+	path = xai-kit
+	url = https://github.com/WilliamRo/xai-kit
+[submodule "hypnomics"]
+	path = hypnomics
+	url = https://github.com/WilliamRo/hypnomics
