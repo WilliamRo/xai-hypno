@@ -1120,6 +1120,10 @@ class HSPOrganization(Nomear):
       assert os.path.exists(data_dir), f'Data directory not found: {data_dir}'
       ses_path = os.path.join(data_dir, f'{sub_id}/{ses_id}')
 
+      # Workaround for data structure modification by data providers
+      if not os.path.exists(ses_path):
+        ses_path = os.path.join(data_dir, f'S0001/{sub_id}/{ses_id}')
+
     self.ses_path = ses_path
 
     self.ses_id = os.path.basename(ses_path)
