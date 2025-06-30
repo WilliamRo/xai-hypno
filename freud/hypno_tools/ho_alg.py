@@ -1,0 +1,156 @@
+from freud.benchmarks.algorithm import Algorithm
+from freud.datasets.dataset_base import HypnoDataset
+from hypnomics.freud.freud import Freud
+from hypnomics.freud.nebula import Nebula
+from hypnomics.hypnoprints.extractor import Extractor
+from roma import check_type
+from roma import console
+
+from .probe_tools import get_extractor_dict, get_probe_keys
+
+import numpy as np
+
+
+
+class HOAlgorithm(Algorithm):
+    """A hypnomics algorithm used in benchmark SOPs.
+       The input of the algorithm should be a SignalGroup.
+
+    IMPORTANT SETTING:
+    - A. dataset: HypnoDataset
+      - A.1 dataset.signal_group_dir
+      - A.2 dataset.sg_file_list
+      - A.3 dataset.channels
+    - B. algorithm: HOAlgorithm
+      - B.1 algorithm.time_resolution
+
+    """
+
+    version = '1.0.0'
+
+    def __init__(self, dataset: HypnoDataset, probe_config='ABD'):
+      super().__init__()
+
+      self.hypno_data = dataset
+      self.time_resolution = 30
+
+      # Set probe configurations
+      self.probe_arg = 'X'
+      if not isinstance(probe_config, (tuple, list)):
+        assert isinstance(probe_config, str)
+        self.probe_arg = probe_config
+        probe_config = get_probe_keys(probe_config)
+      self.probe_config = probe_config
+
+      # Report the configuration
+      console.show_info('Hypnomic pipeline initiated with')
+      console.supplement(f'Data directory: {dataset.data_dir}')
+      console.supplement(f'Signal channels: {dataset.channels}')
+      console.supplement(f'Time resolution: {self.time_resolution} s')
+      console.supplement(f'Probe keys: ')
+      for i, key in enumerate(self.probe_config):
+        console.supplement(f'[{i + 1}] {key}', level=2)
+
+    # region: Public Methods
+
+    def extract_features(self, **kwargs):
+      """Extract feature vectors from a list of signal group filenames
+
+      :return:
+      """
+      show_status = lambda text: console.show_status(text, prompt='[HOAlgo]')
+
+      # (1) Cloud
+      self.generate_clouds(self.time_resolution,
+                           probe_keys=self.probe_config,
+                           sg_file_list=self.hypno_data.sg_file_list)
+      n_sg_files = len(self.hypno_data.sg_file_list)
+      show_status(f'Clouds (N={n_sg_files}) generated.')
+
+      # (2) Nebula
+      show_status('Loading nebula from clouds ...')
+      nebula = self.load_nebula_from_clouds(self.time_resolution,
+                                            probe_keys=self.probe_config)
+      n_clouds = len(self.hypno_data.sg_labels)
+      show_status(f'Nebula (N={n_clouds}) loaded.')
+
+      # (3) Features
+      show_status('Generating features ...')
+      extractor_settings = {
+        'include_statistical_features': 1,
+        'include_inter_stage_features': 1,
+        'include_inter_channel_features': 1,
+
+        # Deprecated features
+        'include_proportion': False,
+        'include_stage_mean': False,
+        'include_stage_shift': False,
+        'include_stage_wise_covariance': False,
+        'include_channel_shift': False,
+        'include_all_mean_std': False,
+      }
+      extractor = Extractor(**extractor_settings)
+      feature_dict = extractor.extract(nebula, return_dict=True)
+      features = np.stack([np.array(list(v.values()))
+                           for v in feature_dict.values()], axis=0)
+      feature_names = list(list(feature_dict.values())[0].keys())
+
+      show_status(f'{len(feature_names)} features generated.')
+
+      return features, {'feature_names': feature_names,
+                        'nebula': nebula,
+                        'extractor_settings': extractor_settings,
+                        'sg_labels': self.hypno_data.sg_labels, }
+
+
+    def generate_clouds(self, time_resolution, probe_keys, overwrite=False,
+                        sg_file_list=None):
+      # Sanity check
+      if not isinstance(time_resolution, (list, tuple)):
+        time_resolution = [time_resolution]
+      check_type(time_resolution, (list, tuple), int)
+
+      # Generate clouds using hypnomics.Freud
+      freud = Freud(self.hypno_data.cloud_dir)
+      fs = freud.get_sampling_frequency(self.hypno_data.signal_group_dir,
+                                        self.hypno_data.sg_fn_pattern,
+                                        self.hypno_data.channels)
+
+      extractor_dict = get_extractor_dict(probe_keys, fs=fs)
+      freud.generate_clouds(self.hypno_data.signal_group_dir,
+                            pattern=self.hypno_data.sg_fn_pattern,
+                            channels=self.hypno_data.channels,
+                            time_resolutions=time_resolution,
+                            overwrite=overwrite,
+                            sg_file_list=sg_file_list,
+                            extractor_dict=extractor_dict)
+
+
+    def load_nebula_from_clouds(self, time_resolution: int,
+                                probe_keys) -> Nebula:
+      # (1) Load nebula
+      freud = Freud(self.hypno_data.cloud_dir)
+      nebula = freud.load_nebula(sg_labels=self.hypno_data.sg_labels,
+                                 channels=self.hypno_data.channels,
+                                 time_resolution=time_resolution,
+                                 probe_keys=probe_keys)
+
+      # (2) Set metadata
+      meta_dict = self.hypno_data.load_meta()
+
+      # Check if metadata matches signal group labels
+      if len(meta_dict) != len(self.hypno_data.sg_labels):
+        console.show_info(
+          'No metadata found or metadata does not match signal group labels.')
+        return nebula
+
+      for pid in self.hypno_data.sg_labels:
+        nebula.meta[pid] = meta_dict[pid]
+
+      return nebula
+
+    # endregion: Public Methods
+
+    # region: Private Methods
+
+    # endregion: Private Methods
