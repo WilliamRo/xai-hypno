@@ -16,6 +16,7 @@ from freud.datasets.hsp import HSP
 # -----------------------------------------------------------------------------
 # (1) Data config
 DATA_DIR = r'E:\data\hsp'
+META_FILE_NAME = r'XXX.meta'
 
 # (2) Model config
 #  note: algorithms should follow the `SignalGroup` protocol
@@ -23,18 +24,14 @@ from freud.hypno_tools.ho_alg import HOAlgorithm as Algorithm
 
 # (3) Testbench config
 test_bench = 'pipeline'
-study_name = f'sc_gender_hypnomics_{test_bench}'
+study_name = f'hsp_depression_hypnomics_{test_bench}'
 
 overwrite = 0
 
 # -----------------------------------------------------------------------------
 #  I Load data
 # -----------------------------------------------------------------------------
-hsp = HSP(DATA_DIR)
-
-# TODO: set the file list of signal groups
-hsp.sg_file_list = []
-
+hsp = HSP(DATA_DIR, meta_file_name=META_FILE_NAME)
 
 # -----------------------------------------------------------------------------
 #  II Run algorithm
@@ -48,8 +45,6 @@ bm = BenchmarkSOP(hypno_data=hsp, model=hoa, test_bench=test_bench,
                   overwrite=overwrite, study_name=study_name)
 
 
-# TODO: make sure `hsp.load_meta` method has been correctly implemented
-#       i.e., should return {'pid': {depression: 'no-depression' or 'depression'}}
 omix = bm.generate_omix(target_key='depression',
                         target_labels=('no-depression', 'depression'),
                         data_name='HSP-Depression')

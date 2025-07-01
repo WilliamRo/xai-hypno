@@ -1,4 +1,4 @@
-from roma import console, Nomear
+from roma import console, Nomear, io
 
 import os
 
@@ -11,9 +11,10 @@ class HypnoDataset(Nomear):
   default_sg_fn_pattern = None
   default_channels = None
 
-  def __init__(self, data_dir):
+  def __init__(self, data_dir, meta_file_name=None):
     assert os.path.exists(data_dir), f'Data directory does not exist: `{data_dir}`'
     self.data_dir = data_dir
+    self.meta_file_name = meta_file_name
 
 
   @property
@@ -21,6 +22,12 @@ class HypnoDataset(Nomear):
 
   @raw_dir.setter
   def raw_dir(self, value): self._set_path('raw', value)
+
+  @property
+  def meta_dir(self): return self._get_path('meta')
+
+  @meta_dir.setter
+  def meta_dir(self, value): self._set_path('meta', value)
 
   @property
   def signal_group_dir(self): return self._get_path('sg')
@@ -61,7 +68,25 @@ class HypnoDataset(Nomear):
 
   @property
   def sg_file_list(self):
-    return self.get_from_pocket('sg_file_list', default=None)
+    file_list = self.get_from_pocket('sg_file_list', default=None)
+    if file_list is not None: return file_list
+
+    # If meta file is provided, then sg_file_list can be automatically generated
+    if self.meta_file_name is not None:
+      from roma import finder
+      meta_dict = self.load_meta()
+      file_list = []
+      for key in meta_dict.keys():
+        result_list = finder.walk(self.signal_group_dir, pattern=f'{key}*.sg')
+        assert len(result_list) == 1, f'Expected one file for key `{key}`, found {len(result_list)}'
+        file_list.append(result_list[0])
+
+      console.show_status('Loaded sg_file_list from meta file.')
+      self.sg_file_list = file_list
+      return file_list
+
+    # Return None directly
+    return file_list
 
   @sg_file_list.setter
   def sg_file_list(self, value):
@@ -108,7 +133,11 @@ class HypnoDataset(Nomear):
     self.put_into_pocket(key, value, exclusive=False)
 
 
-  def load_meta(self, **kwargs) -> dict: return {}
+  def load_meta(self, **kwargs) -> dict:
+    assert self.meta_file_name is not None, f'`meta_file_name` is not set'
+    meta_path = os.path.join(self.meta_dir, self.meta_file_name)
+    assert os.path.exists(meta_path), f'Meta file does not exist: `{meta_path}`'
+    return io.load_file(meta_path, verbose=True)
 
 
 

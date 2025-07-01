@@ -60,6 +60,7 @@ class BenchmarkSOP(Nomear):
                           sf_config: list,
                           ml_config: list,
                           report = True,
+                          plot_matrix = False,
                           **kwargs):
 
     # (0) Create pipeline
@@ -78,7 +79,9 @@ class BenchmarkSOP(Nomear):
       pi.fit_traverse_spaces(key, **kwargs)
 
     # (3) Finalize
-    if report: pi.report()
+    if report:
+      pi.report()
+      if plot_matrix: pi.plot_matrix()
 
     return pi
 
