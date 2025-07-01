@@ -28,19 +28,15 @@ class HOAlgorithm(Algorithm):
 
     version = '1.0.0'
 
-    def __init__(self, dataset: HypnoDataset, probe_config='ABD'):
+    def __init__(self, dataset: HypnoDataset, probe_config='Ab'):
       super().__init__()
 
       self.hypno_data = dataset
       self.time_resolution = 30
 
       # Set probe configurations
-      self.probe_arg = 'X'
-      if not isinstance(probe_config, (tuple, list)):
-        assert isinstance(probe_config, str)
-        self.probe_arg = probe_config
-        probe_config = get_probe_keys(probe_config)
       self.probe_config = probe_config
+      self.probe_arg = probe_config if isinstance(probe_config, str) else 'X'
 
       # Report the configuration
       console.show_info('Hypnomic pipeline initiated with')
@@ -48,8 +44,21 @@ class HOAlgorithm(Algorithm):
       console.supplement(f'Signal channels: {dataset.channels}')
       console.supplement(f'Time resolution: {self.time_resolution} s')
       console.supplement(f'Probe keys: ')
-      for i, key in enumerate(self.probe_config):
+      for i, key in enumerate(self.probe_keys_for_extracting_features):
         console.supplement(f'[{i + 1}] {key}', level=2)
+
+    @property
+    def probe_keys_for_generating_clouds(self):
+      return self._get_probe_keys(False)
+
+    @property
+    def probe_keys_for_extracting_features(self):
+      return self._get_probe_keys(True)
+
+    def _get_probe_keys(self, for_extracting_features):
+      if isinstance(self.probe_config, (tuple, list)): return self.probe_config
+      assert isinstance(self.probe_config, str), f'Invalid probe configuration: {self.probe_config}'
+      return get_probe_keys(self.probe_config, expand_group=for_extracting_features)
 
     # region: Public Methods
 
@@ -63,15 +72,16 @@ class HOAlgorithm(Algorithm):
       # (1) Cloud
       show_status('Generating clouds ...')
       self.generate_clouds(self.time_resolution,
-                           probe_keys=self.probe_config,
+                           probe_keys=self.probe_keys_for_generating_clouds,
                            sg_file_list=self.hypno_data.sg_file_list)
       n_sg_files = len(self.hypno_data.sg_file_list)
       show_status(f'Clouds (N={n_sg_files}) generated.')
 
       # (2) Nebula
       show_status('Loading nebula from clouds ...')
-      nebula = self.load_nebula_from_clouds(self.time_resolution,
-                                            probe_keys=self.probe_config)
+      nebula = self.load_nebula_from_clouds(
+        self.time_resolution,
+        probe_keys=self.probe_keys_for_extracting_features)
       n_clouds = len(self.hypno_data.sg_labels)
       show_status(f'Nebula (N={n_clouds}) loaded.')
 
