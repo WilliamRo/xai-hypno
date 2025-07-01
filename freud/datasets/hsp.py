@@ -8,7 +8,8 @@ class HSP(HypnoDataset):
 
    abbreviation = 'hsp'
    default_sg_fn_pattern = '*(float16,128Hz).sg'
-   default_channels = ('F3-M2', 'F4-M1', 'C3-M2', 'C4-M1', 'O1-M2', 'O2-M1')
+   default_channels = ('EEG F3-M2', 'EEG F4-M1', 'EEG C3-M2',
+                       'EEG C4-M1', 'EEG O1-M2', 'EEG O2-M1')
 
 
    @HypnoDataset.property()

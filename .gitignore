@@ -5,6 +5,9 @@
 *.png
 *.fp
 *.zip
+sync.py
+wm_*.py
+99-MISC
 
 # PyCharm files
 .idea

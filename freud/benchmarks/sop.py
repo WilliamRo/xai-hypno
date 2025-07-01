@@ -31,6 +31,7 @@ class BenchmarkSOP(Nomear):
       if os.path.exists(self.omix_path): return Omix.load(self.omix_path)
 
     # Extract features
+    console.show_status('Extracting features ...', prompt='[SOP] >>')
     features, pkg = self.model.extract_features()
     feature_names = pkg['feature_names']
 

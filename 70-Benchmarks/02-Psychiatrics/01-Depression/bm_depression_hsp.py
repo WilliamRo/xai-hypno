@@ -16,7 +16,8 @@ from freud.datasets.hsp import HSP
 # -----------------------------------------------------------------------------
 # (1) Data config
 DATA_DIR = r'E:\data\hsp'
-META_FILE_NAME = r'XXX.meta'
+DATA_DIR = r'\\192.168.5.100\xai-beta\xai-sleep\data\hsp'
+META_FILE_NAME = r'HSP_depression_150_250701.meta'
 
 # (2) Model config
 #  note: algorithms should follow the `SignalGroup` protocol
@@ -32,6 +33,7 @@ overwrite = 0
 #  I Load data
 # -----------------------------------------------------------------------------
 hsp = HSP(DATA_DIR, meta_file_name=META_FILE_NAME)
+meta = hsp.load_meta()
 
 # -----------------------------------------------------------------------------
 #  II Run algorithm

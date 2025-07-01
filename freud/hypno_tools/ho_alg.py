@@ -61,6 +61,7 @@ class HOAlgorithm(Algorithm):
       show_status = lambda text: console.show_status(text, prompt='[HOAlgo]')
 
       # (1) Cloud
+      show_status('Generating clouds ...')
       self.generate_clouds(self.time_resolution,
                            probe_keys=self.probe_config,
                            sg_file_list=self.hypno_data.sg_file_list)

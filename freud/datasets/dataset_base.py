@@ -75,13 +75,15 @@ class HypnoDataset(Nomear):
     if self.meta_file_name is not None:
       from roma import finder
       meta_dict = self.load_meta()
+      console.show_status(f'Generating sg_file_list from meta ...')
       file_list = []
-      for key in meta_dict.keys():
+      for i, key in enumerate(meta_dict.keys()):
+        console.print_progress(i, len(meta_dict))
         result_list = finder.walk(self.signal_group_dir, pattern=f'{key}*.sg')
         assert len(result_list) == 1, f'Expected one file for key `{key}`, found {len(result_list)}'
         file_list.append(result_list[0])
 
-      console.show_status('Loaded sg_file_list from meta file.')
+      console.show_status(f'Loaded sg_file_list (N={len(file_list)}) from meta file.')
       self.sg_file_list = file_list
       return file_list
 
