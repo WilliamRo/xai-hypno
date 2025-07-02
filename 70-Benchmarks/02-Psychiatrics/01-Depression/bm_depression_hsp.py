@@ -16,7 +16,7 @@ from freud.datasets.hsp import HSP
 # -----------------------------------------------------------------------------
 # (1) Data config
 DATA_DIR = r'E:\data\hsp'
-DATA_DIR = r'\\192.168.5.100\xai-beta\xai-sleep\data\hsp'
+# DATA_DIR = r'\\192.168.5.100\xai-beta\xai-sleep\data\hsp'
 META_FILE_NAME = r'HSP_depression_150_250701.meta'
 
 # (2) Model config
@@ -48,19 +48,25 @@ bm = BenchmarkSOP(hypno_data=hsp, model=hoa, test_bench=test_bench,
 
 
 omix = bm.generate_omix(target_key='depression',
-                        target_labels=('no-depression', 'depression'),
+                        target_labels=('non-depression', 'depression'),
                         data_name='HSP-Depression')
+
+# omix.show_in_explorer()
+# exit()
+
+from pictor.xomics.ml.dr.dr_engine import DREngine
+DREngine.enable_dev_mode()
 
 bm.pipeline_test_bench(
   omix,
   sf_config=[
-    ('ucp', {'k': 50, 'threshold': 0.9}),
-    ('ucp', {'k': 50, 'threshold': 0.7}),
-    ('ucp', {'k': 100, 'threshold': 0.9}),
-    ('ucp', {'k': 100, 'threshold': 0.7}),
-    ('ucp', {'k': 200, 'threshold': 0.9}),
-    ('ucp', {'k': 200, 'threshold': 0.7}),
-    ('lasso', {}),
+    ('ucp', {'k': 50, 'threshold': 0.9, 'm': 1000}),
+    ('ucp', {'k': 50, 'threshold': 0.7, 'm': 1000}),
+    ('ucp', {'k': 100, 'threshold': 0.9, 'm': 1000}),
+    ('ucp', {'k': 100, 'threshold': 0.7, 'm': 1000}),
+    ('ucp', {'k': 200, 'threshold': 0.9, 'm': 1000}),
+    ('ucp', {'k': 200, 'threshold': 0.7, 'm': 1000}),
+    # ('lasso', {}),
   ],
   ml_config=[
     ('lr', {'n_splits': 2}),

@@ -27,6 +27,7 @@ class HOAlgorithm(Algorithm):
     """
 
     version = '1.0.0'
+    prompt = f'[HOAlgo] >>'
 
     def __init__(self, dataset: HypnoDataset, probe_config='Ab'):
       super().__init__()
@@ -39,7 +40,9 @@ class HOAlgorithm(Algorithm):
       self.probe_arg = probe_config if isinstance(probe_config, str) else 'X'
 
       # Report the configuration
-      console.show_info('Hypnomic pipeline initiated with')
+      console.show_status('Hypnomic pipeline initiated with',
+                          prompt=self.prompt)
+
       console.supplement(f'Data directory: {dataset.data_dir}')
       console.supplement(f'Signal channels: {dataset.channels}')
       console.supplement(f'Time resolution: {self.time_resolution} s')
@@ -67,7 +70,7 @@ class HOAlgorithm(Algorithm):
 
       :return:
       """
-      show_status = lambda text: console.show_status(text, prompt='[HOAlgo]')
+      show_status = lambda text: console.show_status(text, prompt=self.prompt)
 
       # (1) Cloud
       show_status('Generating clouds ...')
@@ -123,9 +126,11 @@ class HOAlgorithm(Algorithm):
 
       # Generate clouds using hypnomics.Freud
       freud = Freud(self.hypno_data.cloud_dir)
+      console.show_status('Reading sampling frequency ...', prompt=self.prompt)
       fs = freud.get_sampling_frequency(self.hypno_data.signal_group_dir,
                                         self.hypno_data.sg_fn_pattern,
                                         self.hypno_data.channels)
+      console.show_status(f'Sampling frequency: {fs} Hz', prompt=self.prompt)
 
       extractor_dict = get_extractor_dict(probe_keys, fs=fs)
       freud.generate_clouds(self.hypno_data.signal_group_dir,

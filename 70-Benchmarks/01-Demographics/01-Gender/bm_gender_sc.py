@@ -32,7 +32,6 @@ overwrite = 0
 # -----------------------------------------------------------------------------
 sc = SleepEDFxSC(DATA_DIR)
 
-
 # -----------------------------------------------------------------------------
 #  II Run algorithm
 # -----------------------------------------------------------------------------
@@ -50,23 +49,22 @@ omix = bm.generate_omix(target_key='gender', target_labels=('female', 'male'),
 bm.pipeline_test_bench(
   omix,
   sf_config=[
+    ('ucp', {'k': 50, 'threshold': 0.9}),
+    ('ucp', {'k': 50, 'threshold': 0.7}),
+
     ('ucp', {'k': 100, 'threshold': 0.9}),
     ('ucp', {'k': 100, 'threshold': 0.7}),
-    ('ucp', {'k': 200, 'threshold': 0.9}),
-    ('ucp', {'k': 200, 'threshold': 0.7}),
+    # ('ucp', {'k': 200, 'threshold': 0.9}),
+    # ('ucp', {'k': 200, 'threshold': 0.7}),
     ('ucp', {'k': 300, 'threshold': 0.9}),
     ('ucp', {'k': 300, 'threshold': 0.7}),
-    ('lasso', {}),
+    # ('lasso', {}),
     # ('ucp', {'k': 50, 'threshold': 0.7}),
     # ('ucp', {'k': 50, 'threshold': 0.9}),
   ],
   ml_config=[
-    ('lr', {'n_splits': 2}),
-    ('svm', {'n_splits': 2}),
+    ('lr', {'n_splits': 2, 'repeats': 1}),
+    ('svm', {'n_splits': 2, 'repeats': 1}),
   ],
+  report=True,
 )
-
-
-# omix.show_in_explorer()
-
-# TODO: not done yet
