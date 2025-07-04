@@ -41,9 +41,23 @@ omix_C = Omix(features_C, targets_C,
               target_labels=['Negative', 'Positive'],
               data_name='C')
 
+# Define Omix-D
+features_D = np.array([
+  [9.1],
+  [9.1],
+  [9.1],
+])
+targets_D = [0, 0, 1]
+omix_D = Omix(features_D, targets_D,
+              feature_labels=['feature4'],
+              sample_labels=['sample2', 'sample3', 'sample4'],
+              target_labels=['Negative', 'Positive'],
+              data_name='D')
+
 omix_A.report()
 omix_B.report()
 omix_C.report()
+omix_D.report()
 
 # Merge Omix-A and Omix-B
 omix_AB = omix_A * omix_B
@@ -52,3 +66,6 @@ omix_AB.report()
 # Merge Omix-AB and Omix-C
 omix_ABC = omix_AB + omix_C
 omix_ABC.report()
+
+omix_ABCD = omix_ABC.intersect_merge(omix_D)
+omix_ABCD.report()
