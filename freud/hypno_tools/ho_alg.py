@@ -1,10 +1,12 @@
+import os.path
+
 from freud.benchmarks.algorithm import Algorithm
 from freud.datasets.dataset_base import HypnoDataset
 from hypnomics.freud.freud import Freud
 from hypnomics.freud.nebula import Nebula
 from hypnomics.hypnoprints.extractor import Extractor
 from roma import check_type
-from roma import console
+from roma import console, io
 
 from .probe_tools import get_extractor_dict, get_probe_keys
 
@@ -88,7 +90,7 @@ class HOAlgorithm(Algorithm):
       n_clouds = len(self.hypno_data.sg_labels)
       show_status(f'Nebula (N={n_clouds}) loaded.')
 
-      # (3) Features
+      # (3) Type-I Features
       show_status('Generating features ...')
       extractor_settings = {
         'include_statistical_features': 1,
@@ -111,6 +113,13 @@ class HOAlgorithm(Algorithm):
 
       show_status(f'{len(feature_names)} features generated.')
 
+      # (4) Type-III Features
+      show_status('Loading macro features (alpha) ...')
+      features_III, feature_names_III = self.load_macro_alpha()
+      features = np.concatenate([features, features_III], axis=1)
+      feature_names = feature_names + feature_names_III
+
+      # (-1) Return
       return features, {'feature_names': feature_names,
                         'nebula': nebula,
                         'extractor_settings': extractor_settings,
@@ -124,7 +133,7 @@ class HOAlgorithm(Algorithm):
         time_resolution = [time_resolution]
       check_type(time_resolution, (list, tuple), int)
 
-      # Generate clouds using hypnomics.Freud
+      # Generate clouds (Type-I) using hypnomics.Freud
       freud = Freud(self.hypno_data.cloud_dir)
       console.show_status('Reading sampling frequency ...', prompt=self.prompt)
       fs = freud.get_sampling_frequency(self.hypno_data.signal_group_dir,
@@ -140,6 +149,13 @@ class HOAlgorithm(Algorithm):
                             overwrite=overwrite,
                             sg_file_list=sg_file_list,
                             extractor_dict=extractor_dict)
+
+      # Generate macro features (Type-III)
+      pass
+
+      # Generate macro features (Type-III)
+      freud.generate_macro_features(self.hypno_data.signal_group_dir,
+                                    sg_file_list=sg_file_list)
 
 
     def load_nebula_from_clouds(self, time_resolution: int,
@@ -164,6 +180,24 @@ class HOAlgorithm(Algorithm):
         nebula.meta[pid] = meta_dict[pid]
 
       return nebula
+
+
+    def load_macro_alpha(self, config='alpha'):
+      freud = Freud(self.hypno_data.cloud_dir)
+      features, feature_names = [], None
+
+      for sg_label in self.hypno_data.sg_labels:
+        cloud_path = freud._check_hierarchy(sg_label, create_if_not_exist=False)
+        macro_path = os.path.join(cloud_path, f'macro_{config}.od')
+
+        macro_dict: dict = io.load_file(macro_path)
+        features.append(list(macro_dict.values()))
+
+        if feature_names is None:
+          feature_names = [f'Macro_{n}' for n in macro_dict.keys()]
+
+      features = np.stack(features, axis=0)
+      return features, feature_names
 
     # endregion: Public Methods
 
