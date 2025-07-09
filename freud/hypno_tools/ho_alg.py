@@ -32,22 +32,13 @@ class HOAlgorithm(Algorithm):
     prompt = f'[HOAlgo] >>'
 
     def __init__(self, dataset: HypnoDataset, probe_config='Ab'):
-      super().__init__()
-
-      self.hypno_data = dataset
-      self.time_resolution = 30
+      super().__init__(dataset, time_resolution=30)
 
       # Set probe configurations
       self.probe_config = probe_config
       self.probe_arg = probe_config if isinstance(probe_config, str) else 'X'
 
       # Report the configuration
-      console.show_status('Hypnomic pipeline initiated with',
-                          prompt=self.prompt)
-
-      console.supplement(f'Data directory: {dataset.data_dir}')
-      console.supplement(f'Signal channels: {dataset.channels}')
-      console.supplement(f'Time resolution: {self.time_resolution} s')
       console.supplement(f'Probe keys: ')
       for i, key in enumerate(self.probe_keys_for_extracting_features):
         console.supplement(f'[{i + 1}] {key}', level=2)
