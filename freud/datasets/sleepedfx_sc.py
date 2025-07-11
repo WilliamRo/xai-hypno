@@ -9,6 +9,8 @@ class SleepEDFxSC(HypnoDataset):
    default_sg_fn_pattern = '*(trim1800;128).sg'
    default_channels = ('EEG Fpz-Cz', 'EEG Pz-Oz')
 
+   MAX_SUBJECTS = 999
+
    @property
    def sc_xls_path(self):
       return os.path.join(self.data_dir, 'SC-subjects.xls')
@@ -16,8 +18,12 @@ class SleepEDFxSC(HypnoDataset):
    @property
    def sg_file_list(self):
       if not self.in_pocket('sg_file_list'):
-         return finder.walk(self.signal_group_dir, pattern=self.sg_fn_pattern)
+         return finder.walk(self.signal_group_dir, pattern=self.sg_fn_pattern)[:self.MAX_SUBJECTS]
       return self.get_from_pocket('sg_file_list', default=None)
+
+   @sg_file_list.setter
+   def sg_file_list(self, value):
+      self.put_into_pocket('sg_file_list', value, exclusive=False)
 
    def load_meta(self, **kwargs) -> dict:
       import pandas as pd

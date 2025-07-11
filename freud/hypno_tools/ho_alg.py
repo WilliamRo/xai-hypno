@@ -60,8 +60,6 @@ class HOAlgorithm(Algorithm):
 
     def extract_features(self, **kwargs):
       """Extract feature vectors from a list of signal group filenames
-
-      :return:
       """
       show_status = lambda text: console.show_status(text, prompt=self.prompt)
 

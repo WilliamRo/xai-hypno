@@ -11,6 +11,8 @@ class HypnoDataset(Nomear):
   default_sg_fn_pattern = None
   default_channels = None
 
+  skip_invalid_sg = False
+
   def __init__(self, data_dir, meta_file_name=None):
     assert os.path.exists(data_dir), f'Data directory does not exist: `{data_dir}`'
     self.data_dir = data_dir
@@ -80,7 +82,12 @@ class HypnoDataset(Nomear):
       for i, key in enumerate(meta_dict.keys()):
         console.print_progress(i, len(meta_dict))
         result_list = finder.walk(self.signal_group_dir, pattern=f'{key}*.sg')
-        assert len(result_list) == 1, f'Expected one file for key `{key}`, found {len(result_list)}'
+        if len(result_list) != 1:
+          err_msg = f'Expected one file for key `{key}`, found {len(result_list)}'
+          if self.skip_invalid_sg:
+            console.warning(err_msg)
+            continue
+          raise AssertionError(err_msg)
         file_list.append(result_list[0])
 
       console.show_status(f'Loaded sg_file_list (N={len(file_list)}) from meta file.')
@@ -140,6 +147,10 @@ class HypnoDataset(Nomear):
     meta_path = os.path.join(self.meta_dir, self.meta_file_name)
     assert os.path.exists(meta_path), f'Meta file does not exist: `{meta_path}`'
     return io.load_file(meta_path, verbose=True)
+
+
+  @staticmethod
+  def is_in_linux(): return os.name == 'posix'
 
 
 
