@@ -8,6 +8,7 @@
 sync.py
 wm_*.py
 99-MISC
+50*s*-t*
 
 # PyCharm files
 .idea

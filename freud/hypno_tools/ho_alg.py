@@ -148,7 +148,11 @@ class HOAlgorithm(Algorithm):
 
 
     def load_nebula_from_clouds(self, time_resolution: int,
-                                probe_keys) -> Nebula:
+                                probe_keys=None) -> Nebula:
+      # (0) Sanity check
+      if probe_keys is None:
+        probe_keys = self.probe_keys_for_extracting_features
+
       # (1) Load nebula
       freud = Freud(self.hypno_data.cloud_dir)
       nebula = freud.load_nebula(sg_labels=self.hypno_data.sg_labels,
