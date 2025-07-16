@@ -164,12 +164,13 @@ class MedBase(Nomear):
 
   # region: Queries
 
-  def export(self, filter='*', groups=('root',), save_to_file=False):
+  def export(self, filter='*', groups=('root',), save_to_file=False, mask=True):
     """Export a dataframe from the database.
 
     :param filter:
     :param groups:
     :param save_to_file: If True, save the exported data to a file.
+    :param mask: If True, mask the data (e.g., remove sensitive information).
     """
     #
     df = None

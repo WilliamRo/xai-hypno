@@ -85,8 +85,12 @@ class DBStructure(Nomear, AttributeContainer, Logger):
       for df in sheet_dict.values():
         for row in df.itertuples(index=False):
           assert row.column not in od
-          od[row.column] = {'alias': row.alias, 'dtype': row.dtype,
-                            'group': row.group}
+          # Compatibility patch
+          cname = (row.canonical_name if hasattr(row, 'canonical_name')
+                   else row.alias)
+          remark = row.remark if hasattr(row, 'remark') else ''
+          od[row.column] = {'cname': cname, 'dtype': row.dtype,
+                            'group': row.group, 'remark': remark}
 
     # (1.2) Sanity check
     # for col in self.col2attribute.keys():
@@ -99,21 +103,23 @@ class DBStructure(Nomear, AttributeContainer, Logger):
     a_dict = self._gen_init_attributes(return_dict=True)
     for col, att_dict in od.items():
       # Get master name if exists
-      alias = att_dict['alias']
-      if att_dict['alias'] != '':
-        if alias not in a_dict:
+      cname = att_dict['cname']
+      if cname != '':
+        if cname not in a_dict:
           # Create a new attribute with alias if not exists
-          a_dict[alias] = Attribute(alias, att_dict['group'], att_dict['dtype'])
+          a_dict[cname] = Attribute(cname, att_dict['group'], att_dict['dtype'],
+                                    remark=att_dict['remark'])
         # Append column name to master's alias list. Note that 'col' may have
         #   been registered in built-in attributes !!
-        if col not in a_dict[alias].alias: a_dict[alias].alias.append(col)
-        if att_dict['group'] != a_dict[alias].group: raise AssertionError(
-          f'Attribute `{alias}` has different group `{a_dict[alias].group}` '
-          f'while `{col}` has group `{att_dict["group"]}`.')
+        if col not in a_dict[cname].alias: a_dict[cname].alias.append(col)
+        if att_dict['group'] != a_dict[cname].group: raise AssertionError(
+          f'Canonical attribute `{cname}` has different group (`{a_dict[cname].group})` '
+          f'with alias `{col}` (`{att_dict["group"]}`).')
       elif col not in a_dict:
         # Create a new attribute without alias. Note that 'col' may have been
         #   registered as an alias of another attribute !!
-        a_dict[col] = Attribute(col, att_dict['group'], att_dict['dtype'])
+        a_dict[col] = Attribute(col, att_dict['group'], att_dict['dtype'],
+                                remark=att_dict['remark'])
 
     # (3) Update attributes list
     self.put_into_pocket('attributes', list(a_dict.values()),
@@ -243,7 +249,7 @@ class Group(Nomear, AttributeContainer):
 
   @property
   def data_frame(self) -> pd.DataFrame:
-    col_names = ('column', 'alias', 'dtype', 'group')
+    col_names = ('column', 'canonical_name', 'dtype', 'group', 'remark')
 
     # Initialize an empty DataFrame with specified columns
     od = OrderedDict()
@@ -253,9 +259,10 @@ class Group(Nomear, AttributeContainer):
     for name, attr in self.col2attribute.items():
       assert isinstance(attr, Attribute)
       od['column'].append(name)
-      od['alias'].append('' if name == attr.name else attr.name)
+      od['canonical_name'].append('' if name == attr.name else attr.name)
       od['dtype'].append(attr.dtype)
       od['group'].append(self.name)
+      od['remark'].append(attr.remark)
 
     # (-1) Return DataFrame
     return pd.DataFrame(od, dtype=str)
@@ -269,8 +276,9 @@ class Attribute(Nomear):
 
   TYPES = ('str', 'int', 'float', 'date')
 
-  def __init__(self, name, group='pending', dtype='str', alias=()):
+  def __init__(self, name, group='pending', dtype='str', alias=(), remark=''):
     self.name = name
     self.alias = list(alias)
     self.group = group
     self.dtype = dtype
+    self.remark = remark
