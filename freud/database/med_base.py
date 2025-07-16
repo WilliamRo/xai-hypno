@@ -6,6 +6,7 @@ from freud.database.structure import DBStructure
 from roma import Nomear, io, console
 
 import os
+import re
 
 
 
@@ -83,11 +84,16 @@ class MedBase(Nomear):
     assert db_path.endswith('.mdb')
     # Load HypnoDB from file
     hdb: MedBase = io.load_file(db_path, verbose=verbose)
+
     # Set root path, check db_name
     dir_path, db_fn = io.dir_and_fn(db_path)
     hdb.root_path = dir_path
     if hdb.db_name not in db_fn: console.warning(
       f'!! DB name `{hdb.db_name}` not found in file name `{db_fn}`')
+
+    # Import structure
+    hdb.structure.import_structure()
+
     return hdb
 
 
@@ -97,8 +103,12 @@ class MedBase(Nomear):
       db_path = os.path.join(self.root_path, f'{self.db_name}.mdb')
     else:
       assert db_path.endswith('.mdb'), 'Database file must have `.mdb` extension'
+
     # Save HypnoDB to file
     io.save_file(self, db_path, verbose=verbose)
+
+    # Save structure to file
+    self.structure.export_structure(verbose=verbose)
 
 
   def read_raw_data(self, data_path: str, primary_key: str,
@@ -153,6 +163,29 @@ class MedBase(Nomear):
   # endregion: Data Processing
 
   # region: Queries
+
+  def export(self, filter='*', groups=('root',), save_to_file=False):
+    """Export a dataframe from the database.
+
+    :param filter:
+    :param groups:
+    :param save_to_file: If True, save the exported data to a file.
+    """
+    #
+    df = None
+
+    # (-1) Save to file and return
+    if save_to_file:
+      from tkinter import filedialog
+      save_path = filedialog.asksaveasfilename()
+
+      # Check if the file has a valid extension
+      fmt = 'xlsx'
+      if re.match('.*\.{}$'.format(fmt), save_path) is None:
+        save_path += '.{}'.format(fmt)
+
+    return df
+
 
   def report(self):
     # Define handy supplement function
