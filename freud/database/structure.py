@@ -1,5 +1,6 @@
 from ._apis.logger import Logger
 from ._apis.structure_related import AttributeContainer
+from .parser import Parser
 from collections import OrderedDict
 from roma import Nomear, io, console
 
@@ -55,7 +56,7 @@ class DBStructure(Nomear, AttributeContainer, Logger):
     for a in self.attributes:
       # BUILTIN_GROUPS
       if a.group in ('root', 'pending', 'shared', 'dropped'): continue
-      if a.group not in od: od[a.group] = Group(name=a.group)
+      if a.group not in od: od[a.group] = Group(a.group, self)
       od[a.group].attributes.append(a)
     return list(od.values())
 
@@ -208,6 +209,27 @@ class DBStructure(Nomear, AttributeContainer, Logger):
     self.pending_group.report(level=level + 1, prefix='Builtin-')
     self.dropped_group.report(level=level + 1, prefix='Builtin-')
 
+
+  def gen_empty_row_dict(self, groups: list[str]) -> OrderedDict:
+    """Generate an empty row dictionary with specified groups.
+    This is for exporting data to Excel or other formats.
+    """
+    leaf_groups = self.leaf_groups
+    # (1) Share common attributes among leaf groups
+    if any([group_name in leaf_groups for group_name in groups]):
+      groups = ['shared'] + list(groups)
+
+    # (2) Generate empty row dictionary with primary key
+    od = OrderedDict()
+    od['primary_key'] = None
+
+    # (3) Add specified groups' attributes
+    for group_name in groups:
+      g: Group = self._get_group(group_name)
+      for attr in g.attributes: od[attr.name] = None
+
+    return od
+
   # endregion: MISC
 
   # endregion: Public Methods
@@ -215,9 +237,10 @@ class DBStructure(Nomear, AttributeContainer, Logger):
   # region: Private Methods
 
   def _get_group(self, name):
-    g = Group(name=name)
+    g = Group(name=name, structure=self)
     g.attributes.extend([a for a in self.attributes if a.group == name])
     return g
+
 
   def _gen_init_attributes(self, return_dict=False):
     init_attributes = [
@@ -236,15 +259,10 @@ class DBStructure(Nomear, AttributeContainer, Logger):
 
 class Group(Nomear, AttributeContainer):
 
-  def __init__(self, name):
+  def __init__(self, name, structure: DBStructure = None):
     self.name = name
     self.attributes: list[Attribute] = []
-
-
-  def report(self, level=2, prefix=''):
-    # Define handy supplement function
-    sup = lambda text, lv=level: console.supplement(text, level=lv)
-    sup(f'{prefix}Group `{self.name}`: {len(self.attributes)} attributes')
+    self.structure = structure
 
 
   @property
@@ -268,6 +286,42 @@ class Group(Nomear, AttributeContainer):
     return pd.DataFrame(od, dtype=str)
 
 
+  def report(self, level=2, prefix=''):
+    # Define handy supplement function
+    sup = lambda text, lv=level: console.supplement(text, level=lv)
+    sup(f'{prefix}Group `{self.name}`: {len(self.attributes)} attributes')
+
+
+  def extract(self, row_dict: dict) -> OrderedDict:
+    """Format: <primary_key>, <shared_keys>, <keys from leaves>
+    TODO: Note that in MedBase.export, slots for <primary_key> and <shared_keys>
+          will be created and the od extracted by this function is well-matched
+          to its corresponding <primary_key>.
+          Thus it works fine to omit <primary_key> and <shared_keys> here in
+          this function.
+    """
+    assert self.name not in ('pending', 'shared', 'dropped')
+
+    od = OrderedDict()
+    if self.name != 'root':
+      # (1) Extract primary key
+      od['primary_key'] = self.structure.col2attribute['primary_key'].extract(
+        row_dict)
+
+      # (2) Extract shared keys
+      for attr in self.structure.shared_group.attributes:
+        od[attr.name] = attr.extract(row_dict)
+
+    # (3) Extract self.keys
+    flag = False
+    for attr in self.attributes:
+      od[attr.name] = attr.extract(row_dict)
+      flag = flag or od[attr.name] is not None
+
+    if flag: return od
+    return None
+
+
   def __len__(self): return len(self.attributes)
 
 
@@ -282,3 +336,15 @@ class Attribute(Nomear):
     self.group = group
     self.dtype = dtype
     self.remark = remark
+
+
+  def extract(self, row_dict: dict):
+    """Extract value from a row dictionary."""
+    if self.name in row_dict: return self.parse(row_dict[self.name])
+    for alias in self.alias:
+      if alias in row_dict: return self.parse(row_dict[alias])
+    return None
+
+
+  def parse(self, value):
+    return Parser.parse(value, self)

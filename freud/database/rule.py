@@ -9,7 +9,9 @@ class Rule(Nomear):
   INTERNAL_PRIMARY_KEY_DIGITS = 6
 
   @Nomear.property(local=True)
-  def primary_key_dict(self) -> OrderedDict: return OrderedDict()
+  def primary_key_dict(self) -> OrderedDict:
+    """Map primary keys to internal keys."""
+    return OrderedDict()
 
 
   @property

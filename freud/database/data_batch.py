@@ -21,13 +21,17 @@ class DataBatch(Nomear):
       raise ValueError(f'Primary key `{primary_key}` not found in data columns:'
                        f' {self.raw_data.columns.tolist()}')
 
+    self.med_base = None
+
   # region: Properties
 
   @property
   def n_records(self): return len(self.raw_data)
 
+
   @property
   def columns(self): return self.raw_data.columns.tolist()
+
 
   @Nomear.property(local=True)
   def data_hash(self):
@@ -35,20 +39,24 @@ class DataBatch(Nomear):
     # To get a single hash for the DataFrame:
     return hash(tuple(row_hashes))
 
+
   @Nomear.property(local=True)
-  def registered_data(self) -> OrderedDict:
+  def registered_record_dict(self) -> OrderedDict:
     """Keys: primary key; Values: a list of pd rows"""
     return OrderedDict()
+
 
   @Nomear.property(local=True)
   def pending_data(self) -> list:
     """List of pd rows w/o primary key"""
     return []
 
+
   @property
   def total_registered_records(self) -> int:
     """Total number of registered records."""
-    return sum(len(records) for records in self.registered_data.values())
+    return sum(len(records)
+               for records in self.registered_record_dict.values())
 
   # endregion: Properties
 
@@ -60,17 +68,17 @@ class DataBatch(Nomear):
 
     # Check if the data batch has been parsed before
     if overwrite:
-      self.registered_data.clear()
+      self.registered_record_dict.clear()
       self.pending_data.clear()
     else:
-      if len(self.registered_data) > 0 or len(self.pending_data) > 0:
+      if len(self.registered_record_dict) > 0 or len(self.pending_data) > 0:
         console.warning('Data batch already parsed. Use `overwrite=True` to '
                         're-parse the data.')
         return
 
     # Iterate through the raw data
     for _, row in self.raw_data.iterrows():
-      record = Record(row, master=self)
+      record = Record(row, batch=self)
 
       if self.primary_key is not None:
         key = row[self.primary_key]
@@ -79,9 +87,9 @@ class DataBatch(Nomear):
           rule.register(key)  # Register the primary key
 
           # Initialize the registered data if not exists
-          if key not in self.registered_data: self.registered_data[key] = []
+          if key not in self.registered_record_dict: self.registered_record_dict[key] = []
 
-          self.registered_data[key].append(record)
+          self.registered_record_dict[key].append(record)
 
         else: self.pending_data.append(record)
       else: self.pending_data.append(record)

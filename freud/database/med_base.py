@@ -2,11 +2,13 @@ from collections import OrderedDict
 from freud.database.data_batch import DataBatch
 from freud.database.record import Record
 from freud.database.rule import Rule
+from freud.database.patient import Patient
 from freud.database.structure import DBStructure
 from roma import Nomear, io, console
 
 import os
 import re
+import pandas as pd
 
 
 
@@ -34,16 +36,20 @@ class MedBase(Nomear):
 
   @Nomear.property(local=True)
   def patient_dict(self) -> OrderedDict:
-    """key: patient ID; value: ???"""
-    return OrderedDict()
+    """key: patient ID; value: Patient"""
+    od = OrderedDict()
+    for key, record_list in self.registered_record_dict.items():
+      od[key] = Patient(key, med_base=self)
+      od[key].records.extend(record_list)
+    return od
 
 
   @property
-  def registered_data(self) -> OrderedDict:
+  def registered_record_dict(self) -> OrderedDict:
     """Registered data gathered from all DataBatches."""
     od = OrderedDict()
     for batch in self.batch_dict.values():
-      for key, records in batch.registered_data.items():
+      for key, records in batch.registered_record_dict.items():
         if key not in od: od[key] = []
         od[key].extend(records)
     return od
@@ -61,13 +67,13 @@ class MedBase(Nomear):
   @property
   def total_registered_records(self) -> int:
     """Total number of registered records across all DataBatches."""
-    return sum(len(records) for records in self.registered_data.values())
+    return sum(len(records) for records in self.registered_record_dict.values())
 
 
   @property
   def all_records(self) -> list[Record]:
     records = []
-    for r_list in self.registered_data.values(): records.extend(r_list)
+    for r_list in self.registered_record_dict.values(): records.extend(r_list)
     records.extend(self.pending_data)
     return records
 
@@ -97,7 +103,7 @@ class MedBase(Nomear):
     return hdb
 
 
-  def save_db(self, db_path: str = None, verbose=True):
+  def save_db(self, db_path: str = None, verbose=True, export_structure=True):
     """Save MedBase to file"""
     if db_path is None:
       db_path = os.path.join(self.root_path, f'{self.db_name}.mdb')
@@ -108,7 +114,7 @@ class MedBase(Nomear):
     io.save_file(self, db_path, verbose=verbose)
 
     # Save structure to file
-    self.structure.export_structure(verbose=verbose)
+    if export_structure: self.structure.export_structure(verbose=verbose)
 
 
   def read_raw_data(self, data_path: str, primary_key: str,
@@ -126,6 +132,7 @@ class MedBase(Nomear):
 
     # (0) Wrap the data in a DataBatch
     batch = DataBatch(data_path, primary_key=primary_key)
+    batch.med_base = self
 
     # (1) Check if the file already exists in the database
     for fn, old_batch in self.batch_dict.items():
@@ -164,16 +171,93 @@ class MedBase(Nomear):
 
   # region: Queries
 
-  def export(self, filter='*', groups=('root',), save_to_file=False, mask=True):
+  def export(self, selector='*', groups=('root',),
+             merge_radius=0, save_to_file=False, mask=True):
     """Export a dataframe from the database.
 
-    :param filter:
+    :param selector:
     :param groups:
+    :param merge_radius: Radius (in days) for merging related records.
     :param save_to_file: If True, save the exported data to a file.
     :param mask: If True, mask the data (e.g., remove sensitive information).
+
+    !! Exceptions:
+    (1) Ambiguity caused by large `merge_radius`
     """
-    #
-    df = None
+    # (1) Select records to export
+    # TODO: restrict selector to a specific format for now
+    assert selector == '*', 'Currently only `*` selector is supported.'
+
+    # (2) Initialize a list of row dict, each row dict shares the same keys
+    row_dict_list = []
+
+    # For each patient:
+    for pid, patient in self.patient_dict.items():
+      # record_list contains all records of the same patient with 'pid'
+
+      # (2.1) Get patient info from root group
+      patient_info = patient.root_dict
+
+      # (2.2) Initialize candidate group dict:
+      #       {'group_1': [rec_dict_1_1, rec_dict_1_2, ...],
+      #        'group_2': [rec_dict_2_1]}
+      dict_of_rec_lists: OrderedDict = patient.get_dict_of_rec_lists(groups)
+
+      # (2.3) Iteratively scan and reduce dict_of_rec_lists until all records
+      #       are merged
+      if len(dict_of_rec_lists) == 0:
+        # Handle situation that only root group is required to be exported
+        assert 'root' in groups
+        row_dict = self.structure.gen_empty_row_dict(groups)
+        row_dict.update(patient_info)
+        row_dict_list.append(row_dict)
+        continue
+
+      while len(dict_of_rec_lists) > 0:
+        # (2.3.1) Initialize an empty row dict for the current record
+        row_dict = self.structure.gen_empty_row_dict(groups)
+
+        # (2.3.2) Update row_dict with patient info if required
+        if 'root' in groups: row_dict.update(patient_info)
+
+        # (2.3.3) Get the first key and its record list, update row_dict
+        remaining_group_names = list(dict_of_rec_lists.keys())
+        main_group_name = remaining_group_names[0]
+        rec_list: list = dict_of_rec_lists[main_group_name]
+        rec = rec_list.pop(0)
+        assert isinstance(rec, dict) and 'date' in rec
+        anchor_date = rec['date']
+        row_dict.update(rec)
+
+        # (2.3.4) Match record from other remaining groups
+        for group_name in remaining_group_names[1:]:
+          rec_list: list = dict_of_rec_lists[group_name]
+          for rec in rec_list:
+            # TODO: use exact match for now
+            if rec['date'] == anchor_date:
+              row_dict.update(rec)
+              rec_list.remove(rec)
+              # safe as long as bread after removal
+              break
+
+        # (2.3.5) Append the row_dict to the row_dict_list
+        row_dict_list.append(row_dict)
+
+        # (2.3.-1)
+        for key in list(dict_of_rec_lists.keys()):
+          if len(dict_of_rec_lists[key]) == 0: dict_of_rec_lists.pop(key)
+
+    df = pd.DataFrame(row_dict_list)
+
+    # (3) Data masking
+    if mask:
+      # (3.1) Drop name column
+      if 'name' in df.columns: df.drop(columns=['name'], inplace=True)
+
+      # (3.2) Change `primary_key` column to `internal_key`
+      if 'primary_key' in df.columns:
+        df['primary_key'] = df['primary_key'].apply(
+          lambda x: self.rule.primary_key_dict.get(x, ''))
 
     # (-1) Save to file and return
     if save_to_file:
@@ -184,6 +268,10 @@ class MedBase(Nomear):
       fmt = 'xlsx'
       if re.match('.*\.{}$'.format(fmt), save_path) is None:
         save_path += '.{}'.format(fmt)
+
+      df.to_excel(save_path, index=False)
+
+      self.show_status(f'Exported data saved to `{save_path}`.')
 
     return df
 
