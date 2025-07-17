@@ -214,10 +214,11 @@ class DBStructure(Nomear, AttributeContainer, Logger):
     """Generate an empty row dictionary with specified groups.
     This is for exporting data to Excel or other formats.
     """
-    leaf_groups = self.leaf_groups
+    leaf_groups = [g.name for g in self.leaf_groups]
     # (1) Share common attributes among leaf groups
     if any([group_name in leaf_groups for group_name in groups]):
-      groups = ['shared'] + list(groups)
+      groups = list(groups)
+      groups.insert(int('root' in groups), 'shared')
 
     # (2) Generate empty row dictionary with primary key
     od = OrderedDict()

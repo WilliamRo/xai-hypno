@@ -53,13 +53,10 @@ class Patient(Nomear):
     """Get a dictionary of records grouped by specified groups.
     Only leaf groups are considered.
     """
-    leaf_groups = self.med_base.structure.leaf_groups
+    leaf_groups = [g.name for g in self.med_base.structure.leaf_groups]
 
     # Initialize an ordered dictionary for the groups
     od = OrderedDict()
-    for group_name in groups:
-      if group_name not in leaf_groups: continue
-      od[group_name] = []
 
     # Scan through records and fill the dictionary
     for record in self.records:
@@ -67,6 +64,36 @@ class Patient(Nomear):
 
       for group_name in groups:
         if group_name not in leaf_groups: continue
-        if group_name in rec_grp_dict: od[group_name].append(record)
+        if group_name in rec_grp_dict:
+          if group_name not in od: od[group_name] = []
+          # TODO: merge same record !!
+          od[group_name].append(rec_grp_dict[group_name])
+
+    # Merge same records in each group
+    for group_name in od.keys():
+      merged_list = []
+      for this_rec in od[group_name]:
+        found_in_merged_list = False
+        # Try to find rec in merged_list with a same date
+        for that_rec in merged_list:
+          if this_rec['date'] == that_rec['date'] != None:
+            # If found, merge the records
+            for key in this_rec.keys():
+              if that_rec[key] is None: that_rec[key] = this_rec[key]
+              elif this_rec[key] is not None and that_rec[key] != this_rec[key]:
+
+                # TODO: patch here
+                if key == 'BMI' and abs(that_rec[key] - this_rec[key]) < 1.:
+                  continue
+
+                raise AssertionError(
+                  f'!! Ambiguous record {key} in patient (ID={self.primary_key}): '
+                  f'{that_rec[key]} != {this_rec[key]}.')
+
+            found_in_merged_list = True
+
+        if not found_in_merged_list: merged_list.append(this_rec)
+
+      od[group_name] = merged_list
 
     return od
