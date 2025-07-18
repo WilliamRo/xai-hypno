@@ -90,7 +90,8 @@ class Patient(Nomear):
               elif this_rec[key] is not None and that_rec[key] != this_rec[key]:
 
                 if Arbitration.handle_record_conflict(
-                    that_rec, this_rec, key, pid=self.primary_key): continue
+                    that_rec, this_rec, key, pid=self.primary_key):
+                  continue
 
                 raise AssertionError(
                   f'!! Ambiguous record {key} in patient (ID={self.primary_key}): '

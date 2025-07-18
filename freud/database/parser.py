@@ -66,7 +66,7 @@ def parse_date(value) -> date:
     except (ValueError, TypeError):
       continue
 
-  # Case III:
+  # Case III: TODO
   if value in (
       '44740',
       '44704',
@@ -86,7 +86,7 @@ def parse_float(value) -> float:
 
 class Parser(object):
 
-  NONE_SET = ['#N/A', 'null', 'nan', '/', '未测', '']
+  NONE_SET = ['', '#N/A', 'null', 'nan', '/', '//', '未测', '-']
 
   Library = {
     'primary_key': parse_id,

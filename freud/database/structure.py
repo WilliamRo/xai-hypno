@@ -248,7 +248,7 @@ class DBStructure(Nomear, AttributeContainer, Logger):
       Attribute(name='primary_key', group='root', alias=['病历号', 'ID']),
       Attribute(name='name', group='root', alias=['姓名']),
       Attribute(name='gender', group='root', alias=['性别']),
-      Attribute(name='age', group='shared', alias=['年龄']),
+      Attribute(name='age', group='shared', dtype='int', alias=['年龄']),
       Attribute(name='date', group='shared', dtype='date', alias=['日期']),
     ]
     if not return_dict: return init_attributes
@@ -341,9 +341,14 @@ class Attribute(Nomear):
 
   def extract(self, row_dict: dict):
     """Extract value from a row dictionary."""
-    if self.name in row_dict: return self.parse(row_dict[self.name])
-    for alias in self.alias:
-      if alias in row_dict: return self.parse(row_dict[alias])
+    try:
+      if self.name in row_dict: return self.parse(row_dict[self.name])
+      for alias in self.alias:
+        if alias in row_dict: return self.parse(row_dict[alias])
+    except Exception as e:
+      console.warning(f'Error extracting attribute `{self.name}`')
+      raise e
+
     return None
 
 
