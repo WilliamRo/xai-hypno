@@ -30,6 +30,7 @@ def parse_date(value) -> date:
     (4) 2000-01-01
     (5) 2000/01/01
   """
+  if isinstance(value, datetime): return value.date()
   if isinstance(value, date): return value
   value = str(value)
 
@@ -85,7 +86,7 @@ def parse_float(value) -> float:
 
 class Parser(object):
 
-  NONE_SET = ['#N/A', 'null', 'nan', '/', '']
+  NONE_SET = ['#N/A', 'null', 'nan', '/', '未测', '']
 
   Library = {
     'primary_key': parse_id,

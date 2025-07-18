@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from freud.database.arbitration import Arbitration
 from freud.database.record import Record
 from roma import Nomear, io, console
 
@@ -69,31 +70,39 @@ class Patient(Nomear):
           # TODO: merge same record !!
           od[group_name].append(rec_grp_dict[group_name])
 
-    # Merge same records in each group
+    # Merge records with the same date in each group
     for group_name in od.keys():
+      # (1) Initialize a merged list for the group
       merged_list = []
+
+      # (2) Check record to be merged
       for this_rec in od[group_name]:
+
         found_in_merged_list = False
-        # Try to find rec in merged_list with a same date
+
+        # (2.1) Try to find rec in merged_list with a same date
         for that_rec in merged_list:
+
           if this_rec['date'] == that_rec['date'] != None:
-            # If found, merge the records
+            # (2.1.1) If found, merge the records
             for key in this_rec.keys():
               if that_rec[key] is None: that_rec[key] = this_rec[key]
               elif this_rec[key] is not None and that_rec[key] != this_rec[key]:
 
-                # TODO: patch here
-                if key == 'BMI' and abs(that_rec[key] - this_rec[key]) < 1.:
-                  continue
+                if Arbitration.handle_record_conflict(
+                    that_rec, this_rec, key, pid=self.primary_key): continue
 
                 raise AssertionError(
                   f'!! Ambiguous record {key} in patient (ID={self.primary_key}): '
                   f'{that_rec[key]} != {this_rec[key]}.')
 
+            # (2.1.2 ) Set the flag to True
             found_in_merged_list = True
 
+        # (2.2) If not found, append the record to the merged list
         if not found_in_merged_list: merged_list.append(this_rec)
 
+      # (3) Set the merged list back to the ordered dictionary
       od[group_name] = merged_list
 
     return od
