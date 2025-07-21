@@ -760,8 +760,43 @@ class SleepSet(DataSet):
            not .edf.
     """
     from freud import read_digital_signals_mne
-    return read_digital_signals_mne(
-      file_path, groups, dtype, max_sfreq, **kwargs)
+
+    try:
+      return read_digital_signals_mne(
+        file_path, groups, dtype, max_sfreq, **kwargs)
+    except:
+      console.warning(f'Failed to read groups: {groups}.')
+      console.show_status('Trying to manually montage channels ...')
+
+      # Merge groups
+      group = []
+      for g in groups: group.extend(list(g))
+      channel_names = group
+
+      if ' ' in group[0]:
+        assert all([' ' in c for c in group])
+        group = [c.split(' ')[1] for c in group]
+
+      assert all(['-' in c for c in group])
+      single_channels, c1_c2_list = [], []
+      for c in group:
+        c1, c2 = c.split('-')
+        if c1 not in single_channels: single_channels.append(c1)
+        if c2 not in single_channels: single_channels.append(c2)
+        c1_c2_list.append((c1, c2))
+
+      # Read single channels
+      ds = read_digital_signals_mne(
+        file_path, [single_channels], max_sfreq=max_sfreq)[0]
+
+      console.show_status(f'Read {ds.channels_names} from file `{file_path}`.')
+
+      data_list = [ds[c1] - ds[c2] for c1, c2 in c1_c2_list]
+      data = np.stack(data_list, axis=1)
+      data = data.astype(dtype)
+      return [DigitalSignal(data, channel_names=channel_names, sfreq=ds.sfreq,
+                            label=','.join(channel_names))]
+
 
   @staticmethod
   def read_annotations_mne(file_path: str, labels=None) -> Annotation:
