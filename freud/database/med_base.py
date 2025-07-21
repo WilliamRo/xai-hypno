@@ -171,6 +171,91 @@ class MedBase(Nomear):
 
   # region: Queries
 
+  def _mask_df(self, df: pd.DataFrame):
+    if 'primary_key' in df.columns:
+      df['primary_key'] = df['primary_key'].apply(
+        lambda x: self.rule.primary_key_dict.get(x, ''))
+
+    # Change name to internal key
+    if 'name' in df.columns:
+      df['name'] = df['primary_key'].apply(lambda x: f'Name_{int(x[3:])}')
+    # if 'name' in df.columns: df.drop(columns=['name'], inplace=True)
+
+
+  def export_all(self, save_to_file=False, groups='*', mask=True,
+                 format='hs', col_rename=None, group_rename=None):
+    """Export all records from the database from specified groups."""
+    if format == 'hs':
+      # Using Huashun format
+      col_rename = {'primary_key': '病历号', 'age': '年龄', 'date': '检查时间',
+                    'name': '姓名', 'gender': '性别', 'orexin': '食欲素',}
+
+      group_rename = {'root': 'info', 'scale': 'naire',}
+
+    # (1) Initialize group_dict, whose keys are group names and values are lists
+    #   of record dicts.
+    group_dict = OrderedDict()
+    group_dict['root'] = []  # Root group is always present
+
+    # Get leaf groups from the structure
+    leaf_groups = self.structure.leaf_groups
+    if groups == '*':
+      for g in leaf_groups: group_dict[g.name] = []
+    else:
+      assert isinstance(groups, (list, tuple))
+      for gn in groups:
+        assert gn in [g.name for g in leaf_groups]
+        group_dict[gn] = []
+
+    # (2) Fill data for each group
+    for pid, patient in self.patient_dict.items():
+      # record_list contains all records of the same patient with 'pid'
+
+      # (2.1) Get patient info from root group
+      group_dict['root'].append(patient.root_dict)
+
+      # (2.2) Initialize candidate group dict:
+      #       {'group_1': [rec_dict_1_1, rec_dict_1_2, ...],
+      #        'group_2': [rec_dict_2_1]}
+      dict_of_rec_lists: OrderedDict = patient.get_dict_of_rec_lists(
+        list(group_dict.keys()))
+
+      for group_name, rec_list in dict_of_rec_lists.items():
+        assert group_name in group_dict
+        group_dict[group_name].extend(rec_list)
+
+    # (-1) Save to file and return
+    if save_to_file:
+      from tkinter import filedialog
+      save_path = filedialog.asksaveasfilename()
+
+      # Check if the file has a valid extension
+      fmt = 'xlsx'
+      if re.match('.*\.{}$'.format(fmt), save_path) is None:
+        save_path += '.{}'.format(fmt)
+
+      with pd.ExcelWriter(save_path) as writer:
+        for gn, rec_list in group_dict.items():
+          df = pd.DataFrame(rec_list)
+          df.dropna(axis=1, how='all', inplace=True)
+
+          # Mask the data if required
+          if mask: self._mask_df(df)
+
+          # Rename columns if rename_dict is provided
+          if col_rename is not None:
+            df.rename(columns=col_rename, inplace=True)
+
+          # Rename groups if group_rename is provided
+          if group_rename is not None and gn in group_rename:
+            gn = group_rename[gn]
+
+          # Write to Excel sheet
+          df.to_excel(writer, sheet_name=gn, index=False)
+
+      self.show_status(f'Exported data saved to `{save_path}`.')
+
+
   def export(self, selector='*', groups=('root',),
              merge_radius=0, save_to_file=False, mask=True):
     """Export a dataframe from the database.
@@ -247,17 +332,12 @@ class MedBase(Nomear):
         for key in list(dict_of_rec_lists.keys()):
           if len(dict_of_rec_lists[key]) == 0: dict_of_rec_lists.pop(key)
 
+    # (2.4) Convert row_dict_list to a pandas DataFrame, drop empty column
     df = pd.DataFrame(row_dict_list)
+    df.dropna(axis=1, how='all', inplace=True)
 
     # (3) Data masking
-    if mask:
-      # (3.1) Drop name column
-      if 'name' in df.columns: df.drop(columns=['name'], inplace=True)
-
-      # (3.2) Change `primary_key` column to `internal_key`
-      if 'primary_key' in df.columns:
-        df['primary_key'] = df['primary_key'].apply(
-          lambda x: self.rule.primary_key_dict.get(x, ''))
+    if mask: self._mask_df(df)
 
     # (-1) Save to file and return
     if save_to_file:

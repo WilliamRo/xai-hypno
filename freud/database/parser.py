@@ -4,11 +4,11 @@ import re
 
 
 
-def parse_id(value):
+def parse_id(value, attribute):
   return str(value)
 
 
-def parse_gender(value):
+def parse_gender(value, attribute):
   value = str(value).strip().lower()
   if value in ('female', 'male'): return value
   if '女' in value: return 'female'
@@ -18,11 +18,11 @@ def parse_gender(value):
   raise ValueError(f'Failed to parse gender from value: {value}')
 
 
-def parse_gender_cn(value):
-  return {'female': '女', 'male': '男'}[parse_gender(value)]
+def parse_gender_cn(value, attribute):
+  return {'female': '女', 'male': '男'}[parse_gender(value, attribute)]
 
 
-def parse_date(value) -> date:
+def parse_date(value, attribute) -> date:
   """Possible formats:
     (1) 2021.6.1
     (2) 20230301
@@ -76,12 +76,17 @@ def parse_date(value) -> date:
   raise ValueError(f"Date format not recognized: {value}")
 
 
-def parse_int(value) -> int:
+def parse_int(value, attribute) -> int:
   return int(float(value))
 
 
-def parse_float(value) -> float:
+def parse_float(value, attribute) -> float:
   return float(value)
+
+
+def parse_str(value, attribute) -> str:
+  if value == 0: return None
+  return str(value).strip()
 
 
 class Parser(object):
@@ -94,6 +99,7 @@ class Parser(object):
     'date': parse_date,
     'int': parse_int,
     'float': parse_float,
+    'str': parse_str,
   }
 
   @staticmethod
@@ -109,5 +115,5 @@ class Parser(object):
       parse_method = Parser.Library[attribute.dtype]
     else: return str(value)
 
-    return parse_method(value)
+    return parse_method(value, attribute)
 
