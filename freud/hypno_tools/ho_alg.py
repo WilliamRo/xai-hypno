@@ -148,7 +148,7 @@ class HOAlgorithm(Algorithm):
 
 
     def load_nebula_from_clouds(self, time_resolution: int,
-                                probe_keys=None) -> Nebula:
+                                probe_keys=None, load_meta=True) -> Nebula:
       # (0) Sanity check
       if probe_keys is None:
         probe_keys = self.probe_keys_for_extracting_features
@@ -160,6 +160,7 @@ class HOAlgorithm(Algorithm):
                                  time_resolution=time_resolution,
                                  probe_keys=probe_keys)
 
+      if not load_meta: return nebula
       # (2) Set metadata
       meta_dict = self.hypno_data.load_meta()
 
