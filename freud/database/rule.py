@@ -46,6 +46,11 @@ class Rule(Nomear):
     return internal_key
 
 
+  def make_up_primary_key(self, key: str) -> str:
+    """Make up a primary key from the given key"""
+    return str(hash(key))
+
+
   def is_primary_key(self, key) -> bool:
     """Check if the given key is a primary key"""
     # Primary keys should be unique and typically have a length greater than 3 characters

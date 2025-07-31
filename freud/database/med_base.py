@@ -257,7 +257,8 @@ class MedBase(Nomear):
 
 
   def export(self, selector='*', groups=('root',),
-             merge_radius=0, save_to_file=False, mask=True):
+             merge_radius=0, save_to_file=False, mask=True,
+             include_internal_key=False):
     """Export a dataframe from the database.
 
     :param selector:
@@ -282,6 +283,8 @@ class MedBase(Nomear):
 
       # (2.1) Get patient info from root group
       patient_info = patient.root_dict
+      if include_internal_key:
+        patient_info['internal_key'] = patient.internal_key
 
       # (2.2) Initialize candidate group dict:
       #       {'group_1': [rec_dict_1_1, rec_dict_1_2, ...],

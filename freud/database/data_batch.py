@@ -63,6 +63,8 @@ class DataBatch(Nomear):
   # region: Public Methods
 
   def parse(self, rule: Rule, overwrite=False, **kwargs):
+    make_up_primary_key = kwargs.get('make_up_primary_key', False)
+
     # Check if the data batch is empty
     assert self.n_records > 0, 'No records found in the data batch.'
 
@@ -83,7 +85,11 @@ class DataBatch(Nomear):
       if self.primary_key is not None:
         key = row[self.primary_key]
         key = str(key)  # Restrict key to string type
-        if rule.is_primary_key(key):
+        if rule.is_primary_key(key) or make_up_primary_key:
+          if not rule.is_primary_key(key) and make_up_primary_key:
+            key = rule.make_up_primary_key(str(row))
+            row[self.primary_key] = key  # Update the row with the new key
+
           rule.register(key)  # Register the primary key
 
           # Initialize the registered data if not exists

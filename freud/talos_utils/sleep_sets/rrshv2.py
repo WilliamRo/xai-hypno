@@ -21,7 +21,8 @@ class SRRSH(SleepSet):
                    'Nasal Pressure', 'Therm', 'Thor', 'Abdo', 'Sum', 'SpO2',
                    'Snore', 'Leg/L', 'Leg/R', 'PositionSen', 'Pulse']
   GROUPS = [('EEG F3-M2', 'EEG C3-M2', 'EEG O1-M2',
-             'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1'),
+             'EEG F4-M1', 'EEG C4-M1', 'EEG O2-M1',
+             'EEG F3-M1', 'EEG F4-M2'),
             ('EOG E1-M2', 'EOG E2-M2')]
 
   ANNO_LABELS = ['Wake', 'N1', 'N2', 'N3', 'REM', 'Unknown']
@@ -68,18 +69,28 @@ class SRRSH(SleepSet):
     console.show_status(f'Converting {n}/{N} files ...')
 
     # (2) Convert files
+    n_success = 0
     for i, edf_path in enumerate(edf_path_list):
       sg_label = SRRSHAgent.edf_path_to_sg_label(edf_path)
 
       console.show_status(f'Converting {i + 1}/{n} {sg_label} ...')
       console.print_progress(i, n)
 
-      sg: SignalGroup = cls.load_sg_from_raw_files(edf_path, max_sfreq, dtype)
+      try:
+        sg: SignalGroup = cls.load_sg_from_raw_files(edf_path, max_sfreq, dtype)
 
-      sg_path = SRRSHAgent.edf_path_to_sg_path(tgt_dir, edf_path)
-      io.save_file(sg, sg_path, verbose=True)
+        sg_path = SRRSHAgent.edf_path_to_sg_path(tgt_dir, edf_path)
+        io.save_file(sg, sg_path, verbose=True)
+        n_success += 1
+      except Exception as e:
+        if kwargs.get('skip_error', True):
+          console.warning(f'Failed to convert {edf_path}. Skipping ...')
+          # Show detailed error message
+          console.warning(str(e))
+          continue
+        else: raise e
 
-    console.show_status(f'Successfully converted {n} files.')
+    console.show_status(f'Successfully converted {n_success} files.')
 
 
   @classmethod
@@ -87,7 +98,8 @@ class SRRSH(SleepSet):
                              **kwargs):
     import xml.dom.minidom as minidom
 
-    N_CHANNELS = sum([len(g) for g in cls.GROUPS])
+    # N_CHANNELS = sum([len(g) for g in cls.GROUPS])
+    N_CHANNELS = 8
 
     # (1) read psg data as digital signals
     digital_signals: List[DigitalSignal] = cls.read_digital_signals_mne(
@@ -100,6 +112,7 @@ class SRRSH(SleepSet):
 
     # (2) read annotations
     xml_fp = edf_path.replace('.edf', '.XML')
+    if not os.path.exists(xml_fp): xml_fp = edf_path + '.XML'
     xml_root = minidom.parse(xml_fp).documentElement
 
     # (2.1) set stage annotations
