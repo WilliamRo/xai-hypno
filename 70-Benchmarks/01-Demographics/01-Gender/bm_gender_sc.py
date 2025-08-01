@@ -46,25 +46,30 @@ bm = BenchmarkSOP(hypno_data=sc, model=hoa, test_bench=test_bench,
 omix = bm.generate_omix(target_key='gender', target_labels=('female', 'male'),
                         data_name='SC-Gender')
 
+# omix.show_in_explorer()
+# exit()
+
 bm.pipeline_test_bench(
   omix,
   sf_config=[
-    ('ucp', {'k': 50, 'threshold': 0.9}),
-    ('ucp', {'k': 50, 'threshold': 0.7}),
+    # ('ucp', {'k': 50, 'threshold': 0.9}),
+    # ('ucp', {'k': 50, 'threshold': 0.7}),
+    # ('rfe', {}),
 
     ('ucp', {'k': 100, 'threshold': 0.9}),
-    ('ucp', {'k': 100, 'threshold': 0.7}),
+    # ('ucp', {'k': 100, 'threshold': 0.7}),
     # ('ucp', {'k': 200, 'threshold': 0.9}),
     # ('ucp', {'k': 200, 'threshold': 0.7}),
-    ('ucp', {'k': 300, 'threshold': 0.9}),
-    ('ucp', {'k': 300, 'threshold': 0.7}),
+    # ('ucp', {'k': 300, 'threshold': 0.9}),
+    # ('ucp', {'k': 300, 'threshold': 0.7}),
     # ('lasso', {}),
     # ('ucp', {'k': 50, 'threshold': 0.7}),
     # ('ucp', {'k': 50, 'threshold': 0.9}),
   ],
   ml_config=[
     ('lr', {'n_splits': 2, 'repeats': 1}),
-    ('svm', {'n_splits': 2, 'repeats': 1}),
+    # ('svm', {'n_splits': 2, 'repeats': 2}),
   ],
   report=True,
+  plot_matrix=True
 )

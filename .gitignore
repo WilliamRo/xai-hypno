@@ -6,11 +6,14 @@
 *.fp
 *.zip
 sync.py
-wm_*.py
+wm_*
+wm-*
 99-MISC
 50*s*-t*
+72-*
 
 # PyCharm files
+.vscode
 .idea
 features/
 

@@ -51,8 +51,8 @@ omix = bm.generate_omix(target_key='depression',
                         target_labels=('non-depression', 'depression'),
                         data_name='HSP-Depression')
 
-# omix.show_in_explorer()
-# exit()
+omix.show_in_explorer()
+exit()
 
 from pictor.xomics.ml.dr.dr_engine import DREngine
 DREngine.enable_dev_mode()
