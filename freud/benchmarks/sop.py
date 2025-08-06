@@ -26,7 +26,8 @@ class BenchmarkSOP(Nomear):
     return os.path.join(self.hypno_data.omix_dir, f'{self.study_name}.omix')
 
 
-  def generate_omix(self, target_key, target_labels, data_name='Omix') -> Omix:
+  def generate_omix(self, target_key, target_labels, data_name='Omix',
+                    target_collection=None) -> Omix:
     if not self.overwrite and self.study_name is not None:
       if os.path.exists(self.omix_path): return Omix.load(self.omix_path)
 
@@ -49,6 +50,11 @@ class BenchmarkSOP(Nomear):
                 sample_labels=self.hypno_data.sg_labels,
                 target_labels=target_labels,
                 data_name=data_name)
+
+    if target_collection is None: target_collection = {}
+    for key, label in target_collection.items():
+      targets = [meta[sg_lb][key] for sg_lb in self.hypno_data.sg_labels]
+      omix.add_to_target_collection(key, targets, target_labels=label)
 
     # Save omix if necessary
     if self.study_name is not None: omix.save(self.omix_path)

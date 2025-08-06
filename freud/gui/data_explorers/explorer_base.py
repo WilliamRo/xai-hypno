@@ -67,7 +67,8 @@ class ExplorerBase(Pictor):
       se_dict, cursor = {k: [] for k in cls.STAGE_KEYS}, 0
       for interval, anno_id in zip(anno.intervals, anno.annotations):
         n = int((interval[-1] - interval[0]) / 30)
-        sid = map_dict[anno_id]
+        sid = map_dict.get(anno_id, None)
+        # sid = map_dict[anno_id]
         if sid is not None:
           skey = cls.STAGE_KEYS[map_dict[anno_id]]
           for i in range(cursor, cursor + n):

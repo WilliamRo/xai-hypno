@@ -1,5 +1,3 @@
-"""Timestamp: 2025-08-05
-"""
 from .explorer_base import ExplorerBase
 from pictor import Pictor
 from pictor.plotters.plotter_base import Plotter
@@ -168,8 +166,6 @@ class RhythmPlotter(Plotter):
 
     self.new_settable_attr('dev_mode', False, bool,
                            'Option to toggle developer mode')
-    self.new_settable_attr('so', False, bool,
-                           'Option to toggle slow oscillation')
     self.new_settable_attr('summit', False, bool,
                            'Option to toggle summit visualization')
     self.new_settable_attr('stft', True, bool,
@@ -391,18 +387,6 @@ class RhythmPlotter(Plotter):
     return x
 
 
-  def _extract_so(self, s: np.ndarray):
-    from scipy.signal import hilbert
-
-    so = self._butter_filt(s, low_high=(0.4, 1.5))
-
-    analytic_signal = hilbert(so)
-    amplitude_envelope = np.abs(analytic_signal)
-    instantaneous_phase = np.angle(analytic_signal)
-
-    return so, instantaneous_phase, amplitude_envelope
-
-
   def pooling(self, s, size):
     # `size` should be an odd integer
     # assert size - size // 2 * 2 == 1
@@ -436,17 +420,14 @@ class RhythmPlotter(Plotter):
     return indices
 
 
-  def _butter_filt(self, s: np.ndarray, low_high=None):
+  def _butter_filt(self, s: np.ndarray):
     # Filter signal if required
     from scipy.signal import sosfilt
     from scipy.signal import butter
 
-    if low_high is None:
-      filter_args: str = self.get('filter_arg').split(',')
-      assert len(filter_args) == 2
-      low, high = [float(s) for s in filter_args]
-    else:
-      low, high = low_high
+    filter_args: str = self.get('filter_arg').split(',')
+    assert len(filter_args) == 2
+    low, high = [float(s) for s in filter_args]
 
     fs = self.explorer.selected_signal_group.digital_signals[0].sfreq
     sos = butter(10, [low, high], 'bandpass', fs=fs, output='sos')
@@ -472,20 +453,6 @@ class RhythmPlotter(Plotter):
       if self.get('dev_mode'):
         x = self._low_freq_signal(s)
         ax.plot(t, x, 'r-')
-      elif self.get('so'):
-        # Filter signal x to 0.4~1.5 Hz
-        x, phase, envelop = self._extract_so(s)
-
-        ax.plot(t, x, 'r-', label='Slow Oscillation')
-        # ax.plot(t, envelop, 'r:', label='Amplitude Envelope')
-
-        ax2 = ax.twinx()
-        ax2.plot(t, phase, 'g-', label='Phase')
-
-        ax2.set_ylabel('Phase')
-        ax2.set_yticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi],
-                       [f'-$\pi$', r'-$\frac{\pi}{2}$', '0', r'$\frac{\pi}{2}$', f'$\pi$'])
-        # ax2.set_ylim([])
 
     # Set style
     ax.set_xlabel('Time [sec]')
@@ -550,7 +517,6 @@ class RhythmPlotter(Plotter):
                              'Toggle `dev_mode`')
     self.register_a_shortcut('s', lambda: self.flip('summit'),
                              'Toggle `show_summit`')
-    self.register_a_shortcut('S', lambda: self.flip('so'), 'Toggle `so`')
 
     self.register_a_shortcut('f', lambda: self.flip('filter'),
                              'Toggle `filter`')
